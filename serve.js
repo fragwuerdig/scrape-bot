@@ -54,6 +54,18 @@ async function getLuncVolumeTotal() {
     }
 }
 
+async function getHolders() {
+    try {
+        const query = `SELECT * FROM holders ORDER BY amount DESC`;
+        const result = await client.query(query);
+        const scaledResult = result.rows.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        return scaledResult;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
 app.get('/api/swaps/lunc_vol/series/:page', async (req, res, next) => {
     try {
         console.log('Request received');
@@ -73,6 +85,16 @@ app.get('/api/swaps/lunc_vol/total', async (req, res, next) => {
         console.log('Request received');
         const result = await getLuncVolumeTotal();
         res.json(result[0]);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get('/api/holders/list', async (req, res, next) => {
+    try {
+        console.log('Request received');
+        const result = await getHolders();
+        res.json(result);
     } catch (error) {
         next(error);
     }
