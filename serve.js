@@ -1,6 +1,8 @@
 const express = require('express');
 const { Client } = require('pg');
+const https = require('https');
 require('dotenv').config();
+const fs = require('fs');
 
 const app = express();
 const port = process.env.SERVE_PORT || 3000;
@@ -103,10 +105,20 @@ app.get('/api/holders/list', async (req, res, next) => {
 // Register error handling middleware
 app.use(errorHandler);
 
+// Read SSL certificates
+const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
+const certificate = fs.readFileSync(process.env.SSL_CERT, 'utf8');
+const credentials = {
+  key: privateKey,
+  cert: certificate
+};
+const httpsServer = https.createServer(credentials, app);
+
+
 // Start the server
 async function startServer() {
     await connectDatabase();
-    app.listen(port, () => {
+    httpsServer.listen(port, () => {
         console.log(`Server running on port ${port}`);
     });
 }

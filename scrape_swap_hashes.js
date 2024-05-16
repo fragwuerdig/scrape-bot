@@ -70,6 +70,7 @@ async function main() {
 
     var estimate = await estimateTotal();
     var page = 20;
+    var estimate_pages = Math.ceil(estimate/100)
     var hashes = [];
     
     while (true) {
@@ -81,10 +82,12 @@ async function main() {
             hashes = await fetchTxHashes(page, estimate);
         }
         if (hashes.total === 0) {
+            if (page < estimate_pages) {
+		    continue
+	    }
             break;
         }
         await saveHashesInDB(client, hashes.data);
-        console.log(page);
         page += 1;
         //estimate = hashes.total;
     }

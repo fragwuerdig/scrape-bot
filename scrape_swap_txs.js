@@ -36,6 +36,8 @@ const saveSwapInDB = async (client, swap_data) => {
 }
 
 const main = async () => {
+
+    console.log(process.env.DB_USER)
     const client = new Client({
         user: process.env.DB_USER,
         host: process.env.DB_HOST,
