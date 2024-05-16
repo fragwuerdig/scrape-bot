@@ -43,8 +43,7 @@ async function getAccountBalances(holders) {
         const response = await promiseObj.balance;
         return { address: promiseObj.address, balance: Number(response.data.data.balance)};
     }));
-    const filteredBalances = resolvedPromises.filter(holder => holder.balance > 0);
-    return filteredBalances;
+    return resolvedPromises;
 }
 
 async function insertHoldersIntoDB(client, holders) {

@@ -58,7 +58,7 @@ async function getLuncVolumeTotal() {
 
 async function getHolders() {
     try {
-        const query = `SELECT * FROM holders ORDER BY amount DESC`;
+        const query = `SELECT * FROM holders WHERE amount > 0 ORDER BY amount DESC`;
         const result = await client.query(query);
         const scaledResult = result.rows.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
         return scaledResult;
