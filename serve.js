@@ -168,7 +168,13 @@ async function getStakersAirdropEligibility(min_delegation, max_delegation) {
 
         const formattedData = Array.from(averageMap, ([delegator, amount]) => ({ delegator, amount }));
 
-        const scaledResult = formattedData.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        const totalAmount = Array.from(averageMap.values()).reduce((acc, amount) => acc + amount, 0);
+        const formattedDataWithPercentage = formattedData.map(row => {
+            const percentage = ((row.amount / totalAmount) * 100).toFixed(2);
+            return { ...row, percentage };
+        });
+
+        const scaledResult = formattedDataWithPercentage.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
         console.log(scaledResult);
         
         return scaledResult;
