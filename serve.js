@@ -68,6 +68,36 @@ async function getHolders() {
     }
 }
 
+async function getStakerSnapshots() {
+    try {
+        const query = `SELECT * FROM snapshots_delegators ORDER BY created DESC`;
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+async function getStakers() {
+    try {
+        snapshots = await getStakerSnapshots();
+        if (snapshots.length == 0) {
+            return [];
+        }
+        latestSnapshot = snapshots[0].id;
+        const query = `SELECT * FROM delegators WHERE id=${latestSnapshot} ORDER BY amount DESC`;
+        const result = await client.query(query);
+        const scaledResult = result.rows.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        const mappedScaled = scaledResult.map(row => {return {address: row.delegator, amount: row.amount}});
+        return mappedScaled;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+
 app.get('/api/swaps/lunc_vol/series/:page', async (req, res, next) => {
     try {
         console.log('Request received');
@@ -102,23 +132,40 @@ app.get('/api/holders/list', async (req, res, next) => {
     }
 });
 
+app.get('/api/holders/stakers', async (req, res, next) => {
+    try {
+        console.log('Request received');
+        const result = await getStakers();
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
 // Register error handling middleware
 app.use(errorHandler);
 
 // Read SSL certificates
-const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
-const certificate = fs.readFileSync(process.env.SSL_CERT, 'utf8');
-const credentials = {
-  key: privateKey,
-  cert: certificate
-};
-const httpsServer = https.createServer(credentials, app);
+var server;
 
+try {
+    const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
+    const certificate = fs.readFileSync(process.env.SSL_CERT, 'utf8');
+    const credentials = {
+        key: privateKey,
+        cert: certificate
+    };
+    server = https.createServer(credentials, app);
+} catch (error) {
+    console.error('Error reading SSL certificates:', error);
+    server = app;
+}
 
 // Start the server
 async function startServer() {
     await connectDatabase();
-    httpsServer.listen(port, () => {
+    console.log(await getStakers());
+    server.listen(port, () => {
         console.log(`Server running on port ${port}`);
     });
 }
