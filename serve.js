@@ -79,22 +79,103 @@ async function getStakerSnapshots() {
     }
 }
 
-async function getStakers() {
+async function getStakerSnapshotIds() {
+    try {
+        const query = `SELECT id FROM snapshots_delegators ORDER BY created DESC`;
+        const result = await client.query(query);
+        return result.rows.map(row => row.id);
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+async function getStakersById(id) {
+    try {
+        const query = `SELECT * FROM delegators WHERE id=${id} ORDER BY amount DESC`;
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+async function getStakersFormatted() {
     try {
         snapshots = await getStakerSnapshots();
         if (snapshots.length == 0) {
             return [];
         }
-        latestSnapshot = snapshots[0].id;
-        const query = `SELECT * FROM delegators WHERE id=${latestSnapshot} ORDER BY amount DESC`;
-        const result = await client.query(query);
-        const scaledResult = result.rows.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        latestSnapshotId = snapshots[0].id;
+        console.log(latestSnapshotId);
+        const result = await getStakersById(latestSnapshotId);
+        console.log(result);
+        const scaledResult = result.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        //console.log(scaledResult);
         const mappedScaled = scaledResult.map(row => {return {address: row.delegator, amount: row.amount}});
         return mappedScaled;
     } catch (error) {
         console.error('Error executing query:', error);
         throw error;
     }
+}
+
+async function getStakersByIdAirdropFiltered(id, min_delegation, max_delegation) {
+    try {
+        const query = `SELECT delegator, (CASE WHEN amount > ${max_delegation} THEN ${max_delegation} ELSE amount END) FROM delegators WHERE id=${id} AND amount >= ${min_delegation} ORDER BY amount DESC`;
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+async function getStakersAirdropEligibility(min_delegation, max_delegation) {
+    try {
+        const ids = await getStakerSnapshotIds();
+        //var mapped = new Map();
+        const mapped = await Promise.all(ids.map(async (id) => {
+            const result = await getStakersByIdAirdropFiltered(id, min_delegation, max_delegation);
+            return result.reduce((acc, row) => {
+                const amount = Number(row.amount);
+                if (acc.has(row.delegator)) {
+                    acc.set(row.delegator, Number(acc.get(row.delegator)) + amount);
+                } else {
+                    acc.set(row.delegator, amount);
+                }
+                return acc;
+            }, new Map());
+        }));
+
+        const mergedMap = mapped.reduce((acc, map) => {
+            for (const [key, value] of map) {
+                if (acc.has(key)) {
+                    acc.set(key, Number(acc.get(key)) + value);
+                } else {
+                    acc.set(key, value);
+                }
+            }
+            return acc;
+        }, new Map());
+
+        const averageMap = new Map();
+        for (const [key, value] of mergedMap) {
+            const average = Math.floor(value / ids.length);
+            averageMap.set(key, average);
+        }
+
+        const formattedData = Array.from(averageMap, ([delegator, amount]) => ({ delegator, amount }));
+
+        const scaledResult = formattedData.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        console.log(scaledResult);
+        
+        return scaledResult;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }   
 }
 
 
@@ -132,10 +213,20 @@ app.get('/api/holders/list', async (req, res, next) => {
     }
 });
 
-app.get('/api/holders/stakers', async (req, res, next) => {
+app.get('/api/stakers/list', async (req, res, next) => {
     try {
         console.log('Request received');
-        const result = await getStakers();
+        const result = await getStakersFormatted();
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get('/api/airdrop/eligibility_data', async (req, res, next) => {
+    try {
+        console.log('Request received');
+        const result = await getStakersAirdropEligibility(1000000000000, 1000000000000000);
         res.json(result);
     } catch (error) {
         next(error);
@@ -157,14 +248,14 @@ try {
     };
     server = https.createServer(credentials, app);
 } catch (error) {
-    console.error('Error reading SSL certificates:', error);
+    console.error('Error reading SSL certificates.');
+    console.error('Falling back to HTTP server');
     server = app;
 }
 
 // Start the server
 async function startServer() {
     await connectDatabase();
-    console.log(await getStakers());
     server.listen(port, () => {
         console.log(`Server running on port ${port}`);
     });
