@@ -132,10 +132,13 @@ async function getStakersByIdAirdropFiltered(id, min_delegation, max_delegation)
     }
 }
 
+const airdropBlacklist = ["terra1z3p37d642gj62z5mw3kncc5a8gx57qg85mcyee"]
+
 async function getStakersAirdropEligibility(min_delegation, max_delegation) {
     try {
         const ids = await getStakerSnapshotIds();
-        //var mapped = new Map();
+        
+        // get (airdrop filtered) stakers for each snapshot
         const mapped = await Promise.all(ids.map(async (id) => {
             const result = await getStakersByIdAirdropFiltered(id, min_delegation, max_delegation);
             return result.reduce((acc, row) => {
@@ -149,6 +152,7 @@ async function getStakersAirdropEligibility(min_delegation, max_delegation) {
             }, new Map());
         }));
 
+        // merge the maps - sum up the amounts for each delegator
         const mergedMap = mapped.reduce((acc, map) => {
             for (const [key, value] of map) {
                 if (acc.has(key)) {
@@ -160,10 +164,16 @@ async function getStakersAirdropEligibility(min_delegation, max_delegation) {
             return acc;
         }, new Map());
 
+        // calculate the average staking amount for each delegator
         const averageMap = new Map();
         for (const [key, value] of mergedMap) {
             const average = Math.floor(value / ids.length);
             averageMap.set(key, average);
+        }
+
+        // blacklist wallets
+        for (const wallet of airdropBlacklist) {
+            averageMap.delete(wallet);
         }
 
         const formattedData = Array.from(averageMap, ([delegator, amount]) => ({ delegator, amount }));
