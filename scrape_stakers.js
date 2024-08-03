@@ -4,33 +4,39 @@ require('dotenv').config();
 
 const validator = 'terravaloper1ufc3rfz62ez73n5e9t8kc8nkdp8sfpxtyqkq7l'
 
-const fetchDelegations = async (txhash) => {
-    var page = 1;
-    const url = `https://terra-classic-lcd.publicnode.com/cosmos/staking/v1beta1/validators/${validator}/delegations`;
-    var all_delegations = [];
-    var next = undefined;
+const getTotalAmount = async (delegators_in) => {
+    const delegators = delegators_in.map(delegator => delegator.amount);
+    const total = delegators.reduce((sum, amount) => sum + amount, 0);
+    return total;
+}
 
-    try {
-        const response = await axios.get(url);
-        var delegations = response.data.delegation_responses;
-        all_delegations.push(...delegations);
-        all_delegations = all_delegations.flat();
-        next = response.data.pagination.next_key;
-        console.log(next)
-    } catch (err) {
-        console.log('Could not Fetch delegators')
-        console.log(err)
-        return undefined;
+const doSafetyShot = async () => {
+
+    var amnt = [];
+    for (let i = 0; i < 10; i++) {
+        getTotalAmount(delegators);
+        amnt.push(delegatorsSum);
     }
+    console.log(amnt);
 
-    while (next) {
+}
+
+const fetchDelegations = async () => {
+    const url = `http://localhost:1317/cosmos/staking/v1beta1/validators/${validator}/delegations`;
+    var all_delegations = [];
+    var offset = 1;
+    var limit = 100;
+
+    while (true) {
         try {
-            const response = await axios.get(url + `?pagination.key=${next}`);
+            const response = await axios.get(url + `?pagination.limit=${limit}&pagination.offset=${offset}`);
             delegations = response.data.delegation_responses;
+            if (delegations.length == 0) {
+                break;
+            }
             all_delegations.push(...delegations);
             all_delegations = all_delegations.flat();
-            next = response.data.pagination.next_key;
-            console.log(next)
+            offset += limit;
         } catch (err) {
             console.log('Could not Fetch delegators')
             console.log(err)
