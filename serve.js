@@ -101,6 +101,17 @@ async function getStakersById(id) {
     }
 }
 
+async function getLatestPrice() {
+    try {
+        const query = `SELECT price FROM price_points ORDER BY time DESC LIMIT 1`;
+        const result = await client.query(query);
+        return result.rows[0].price;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
 async function getStakersFormatted() {
     try {
         snapshots = await getStakerSnapshots();
@@ -243,6 +254,16 @@ app.get('/api/airdrop/eligibility_data', async (req, res, next) => {
     try {
         console.log('Request received');
         const result = await getStakersAirdropEligibility(1000000000000, 1000000000000000);
+        res.json(result);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.get('/api/price/latest', async (req, res, next) => {
+    try {
+        console.log('Request received');
+        const result = await getLatestPrice();
         res.json(result);
     } catch (error) {
         next(error);
