@@ -254,6 +254,7 @@ app.use(errorHandler);
 
 // Read SSL certificates
 var server;
+const LISTEN = process.env.SERVE_HOST
 
 try {
     const privateKey = fs.readFileSync(process.env.SSL_KEY, 'utf8');
@@ -272,7 +273,7 @@ try {
 // Start the server
 async function startServer() {
     await connectDatabase();
-    server.listen(port, () => {
+    server.listen(port, LISTEN, () => {
         console.log(`Server running on port ${port}`);
     });
 }

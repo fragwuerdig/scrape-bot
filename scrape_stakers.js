@@ -22,7 +22,7 @@ const doSafetyShot = async () => {
 }
 
 const fetchDelegations = async () => {
-    const url = `http://localhost:1317/cosmos/staking/v1beta1/validators/${validator}/delegations`;
+    const url = `http://127.0.0.1:1317/cosmos/staking/v1beta1/validators/${validator}/delegations`;
     var all_delegations = [];
     var offset = 1;
     var limit = 100;
