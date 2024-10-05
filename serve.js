@@ -3,6 +3,9 @@ const { Client } = require('pg');
 const https = require('https');
 require('dotenv').config();
 const fs = require('fs');
+const db = require('./db');
+const common = require('./common');
+const contracts = require('./vesting_contracts');
 
 const app = express();
 const port = process.env.SERVE_PORT || 3000;
@@ -32,95 +35,15 @@ function errorHandler(err, req, res, next) {
     res.status(500).json({ error: 'Internal server error' });
 }
 
-// Route to handle API request
-async function getLuncVolumeTimeSeries(page) {
-    try {
-        const query = `SELECT CASE WHEN offer_denom = 'uluna' THEN offer_amount ELSE output END AS volume, time FROM swap_txs ORDER BY time ASC LIMIT 100 OFFSET $1;`;
-        const result = await client.query(query, [page]);
-        return result.rows;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-// Route to handle API request
-async function getLuncVolumeTotal() {
-    try {
-        const query = `SELECT SUM(CASE WHEN offer_denom = 'uluna' THEN offer_amount ELSE output END) FROM swap_txs`;
-        const result = await client.query(query);
-        return result.rows;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-async function getHolders() {
-    try {
-        const query = `SELECT * FROM holders WHERE amount > 0 ORDER BY amount DESC`;
-        const result = await client.query(query);
-        const scaledResult = result.rows.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
-        return scaledResult;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-async function getStakerSnapshots() {
-    try {
-        const query = `SELECT * FROM snapshots_delegators ORDER BY created DESC`;
-        const result = await client.query(query);
-        return result.rows;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-async function getStakerSnapshotIds() {
-    try {
-        const query = `SELECT id FROM snapshots_delegators ORDER BY created DESC`;
-        const result = await client.query(query);
-        return result.rows.map(row => row.id);
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-async function getStakersById(id) {
-    try {
-        const query = `SELECT * FROM delegators WHERE id=${id} ORDER BY amount DESC`;
-        const result = await client.query(query);
-        return result.rows;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-async function getLatestPrice() {
-    try {
-        const query = `SELECT price FROM price_points ORDER BY time DESC LIMIT 1`;
-        const result = await client.query(query);
-        return result.rows[0].price;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
 async function getStakersFormatted() {
     try {
-        snapshots = await getStakerSnapshots();
+        snapshots = await db.getStakerSnapshots(client);
         if (snapshots.length == 0) {
             return [];
         }
         latestSnapshotId = snapshots[0].id;
         console.log(latestSnapshotId);
-        const result = await getStakersById(latestSnapshotId);
+        const result = await db.getStakersById(client, latestSnapshotId);
         console.log(result);
         const scaledResult = result.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
         //console.log(scaledResult);
@@ -132,60 +55,14 @@ async function getStakersFormatted() {
     }
 }
 
-async function getStakersByIdAirdropFiltered(id, min_delegation, max_delegation) {
+async function getStakersAirdropEligibility(client, min_delegation, max_delegation) {
     try {
-        const query = `SELECT delegator, (CASE WHEN amount > ${max_delegation} THEN ${max_delegation} ELSE amount END) FROM delegators WHERE id=${id} AND amount >= ${min_delegation} ORDER BY amount DESC`;
-        const result = await client.query(query);
-        return result.rows;
-    } catch (error) {
-        console.error('Error executing query:', error);
-        throw error;
-    }
-}
-
-const airdropBlacklist = ["terra1z3p37d642gj62z5mw3kncc5a8gx57qg85mcyee"]
-
-async function getStakersAirdropEligibility(min_delegation, max_delegation) {
-    try {
-        const ids = await getStakerSnapshotIds();
-        
-        // get (airdrop filtered) stakers for each snapshot
-        const mapped = await Promise.all(ids.map(async (id) => {
-            const result = await getStakersByIdAirdropFiltered(id, min_delegation, max_delegation);
-            return result.reduce((acc, row) => {
-                const amount = Number(row.amount);
-                if (acc.has(row.delegator)) {
-                    acc.set(row.delegator, Number(acc.get(row.delegator)) + amount);
-                } else {
-                    acc.set(row.delegator, amount);
-                }
-                return acc;
-            }, new Map());
-        }));
-
-        // merge the maps - sum up the amounts for each delegator
-        const mergedMap = mapped.reduce((acc, map) => {
-            for (const [key, value] of map) {
-                if (acc.has(key)) {
-                    acc.set(key, Number(acc.get(key)) + value);
-                } else {
-                    acc.set(key, value);
-                }
-            }
-            return acc;
-        }, new Map());
-
-        // calculate the average staking amount for each delegator
-        const averageMap = new Map();
-        for (const [key, value] of mergedMap) {
-            const average = Math.floor(value / ids.length);
-            averageMap.set(key, average);
-        }
-
-        // blacklist wallets
-        for (const wallet of airdropBlacklist) {
-            averageMap.delete(wallet);
-        }
+        const averageMap = await db.getStakersAverageMap(
+            client,
+            min_delegation,
+            max_delegation,
+            common.AirdropBlacklist
+        );
 
         const formattedData = Array.from(averageMap, ([delegator, amount]) => ({ delegator, amount }));
 
@@ -195,7 +72,11 @@ async function getStakersAirdropEligibility(min_delegation, max_delegation) {
             return { ...row, percentage };
         });
 
-        const scaledResult = formattedDataWithPercentage.map(row => {row.amount = row.amount / 1000000; row.amount = row.amount.toLocaleString('en-US'); return row});
+        const scaledResult = formattedDataWithPercentage.map(row => {
+            row.amount = row.amount / 1000000;
+            row.amount = row.amount.toLocaleString('en-US');
+            return row
+        });
         console.log(scaledResult);
         
         return scaledResult;
@@ -205,6 +86,36 @@ async function getStakersAirdropEligibility(min_delegation, max_delegation) {
     }   
 }
 
+async function getStakersAirdropDistribution(client, min_delegation, max_delegation) {
+    try {
+        const averageMap = await db.getStakersAverageMap(
+            client,
+            min_delegation,
+            max_delegation,
+            common.AirdropBlacklist
+        );
+
+        const formattedData = Array.from(averageMap, ([delegator, amount]) => ({ delegator, amount }));
+
+        const totalAmount = Array.from(averageMap.values()).reduce((acc, amount) => acc + amount, 0);
+        const formattedDataWithPercentage = formattedData.map(row => {
+            const percentage = ((row.amount / totalAmount) * 100).toFixed(2);
+            return { ...row, percentage };
+        });
+
+        const scaledResult = formattedDataWithPercentage.map(row => {
+            row.amount = row.amount / 1000000;
+            row.amount = row.amount.toLocaleString('en-US');
+            return row
+        });
+        console.log(scaledResult);
+        
+        return scaledResult;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }   
+}
 
 app.get('/api/swaps/lunc_vol/series/:page', async (req, res, next) => {
     try {
@@ -233,7 +144,7 @@ app.get('/api/swaps/lunc_vol/total', async (req, res, next) => {
 app.get('/api/holders/list', async (req, res, next) => {
     try {
         console.log('Request received');
-        const result = await getHolders();
+        const result = await db.getHolders(client);
         res.json(result);
     } catch (error) {
         next(error);
@@ -253,17 +164,33 @@ app.get('/api/stakers/list', async (req, res, next) => {
 app.get('/api/airdrop/eligibility_data', async (req, res, next) => {
     try {
         console.log('Request received');
-        const result = await getStakersAirdropEligibility(1000000000000, 1000000000000000);
+        const result = await getStakersAirdropEligibility(client, 1000000000000, 1000000000000000);
         res.json(result);
     } catch (error) {
         next(error);
     }
 });
 
+app.get('/api/airdrop/distribution_data', async (req, res, next) => {
+    try {
+        console.log('Request received');
+        const totalVest = await contracts.getTotalVest();
+        const weights = await contracts.getWeights();
+        const mapped = weights.map(w => {return {address: w.address, lockdrop_amount: Number(w.weight*totalVest)/1000000}});
+        const sorted = mapped.sort((a, b) => b.lockdrop_amount - a.lockdrop_amount);
+        const formatted = sorted.map(row => {row.lockdrop_amount = row.lockdrop_amount.toLocaleString('en-US'); return row});
+        res.json(formatted);
+    } catch (error) {
+        next(error);
+    }
+
+});
+
+
 app.get('/api/price/latest', async (req, res, next) => {
     try {
         console.log('Request received');
-        const result = await getLatestPrice();
+        const result = await db.getLatestPrice(client);
         res.json(result);
     } catch (error) {
         next(error);
