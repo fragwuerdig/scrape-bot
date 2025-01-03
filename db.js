@@ -141,6 +141,31 @@ const getStakersAverageMap = async function (client, min_delegation, max_delegat
     }   
 }
 
+const TOTAL_SUPPLY_ID = 2;
+const CIRC_SUPPLY_ID = 1;
+const updateSupply = async function (client, supply, id) {
+    try {
+        const query = `INSERT INTO circ_supply (id, circ_supply) VALUES (${id}, '${supply}') ON CONFLICT (id) DO UPDATE SET circ_supply = EXCLUDED.circ_supply`;
+        const result = await client.query(query);
+        return result.rows;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        throw error;
+    }
+}
+
+const getSupply = async function (client, id) {
+    try {
+        const query = `SELECT circ_supply FROM circ_supply WHERE id=${id}`;
+        const result = await client.query(query);
+        console.log(result);
+        return result.rows[0].circ_supply;
+    } catch (error) {
+        console.error('Error executing query:', error);
+        return "0";
+    }
+}
+
 exports.getStakersSnaphotIds = getStakersSnaphotIds;
 exports.getStakersById = getStakersById;
 exports.getLatestPrice = getLatestPrice;
@@ -150,3 +175,7 @@ exports.getHolders = getHolders;
 exports.getStakerSnapshots = getStakerSnapshots;
 exports.getStakersByIdAirdropFiltered = getStakersByIdAirdropFiltered;
 exports.getStakersAverageMap = getStakersAverageMap;
+exports.updateSupply = updateSupply;
+exports.getSupply = getSupply;
+exports.TOTAL_SUPPLY_ID = TOTAL_SUPPLY_ID;
+exports.CIRC_SUPPLY_ID = CIRC_SUPPLY_ID;
