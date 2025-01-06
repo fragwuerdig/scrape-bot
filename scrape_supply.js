@@ -64,7 +64,7 @@ const main = async () => {
 
     try {
         var supply = (await ask_total_supply_terra())/1000000
-        await db.updateSupply(client, supply.toLocaleString('en-US'), db.TOTAL_SUPPLY_ID)
+        await db.updateSupply(client, supply.toFixed(2), db.TOTAL_SUPPLY_ID)
 
         const balancesProm = await exception_list.map(async (wallet) => {
             return ask_balance_terra(wallet)
@@ -75,7 +75,7 @@ const main = async () => {
             console.log(balance)
             supply = supply - balance
         })
-        const circ_supply = supply.toLocaleString('en-US')
+        const circ_supply = supply.toFixed(2)
         await db.updateSupply(client, circ_supply, db.CIRC_SUPPLY_ID)
 
     } catch (error) {

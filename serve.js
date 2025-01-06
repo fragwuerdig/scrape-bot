@@ -200,7 +200,7 @@ app.get('/api/supply/total', async (req, res, next) => {
     try {
         console.log('Request received');
         const result = await db.getSupply(client, db.TOTAL_SUPPLY_ID);
-        res.json(result);
+        res.json(Number(result));
     } catch (error) {
         next(error);
     }
@@ -210,7 +210,7 @@ app.get('/api/supply/circulating', async (req, res, next) => {
     try {
         console.log('Request received');
         const result = await db.getSupply(client, db.CIRC_SUPPLY_ID);
-        res.json(result);
+        res.json(Number(result));
     } catch (error) {
         next(error);
     }
