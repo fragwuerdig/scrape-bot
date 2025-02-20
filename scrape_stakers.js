@@ -2,7 +2,22 @@ const { Client } = require('pg');
 const axios = require('axios');
 require('dotenv').config();
 
-const validator = 'terravaloper1ufc3rfz62ez73n5e9t8kc8nkdp8sfpxtyqkq7l'
+const BASE_URL = process.env.SCRAPE_STAKERS_BASE_URL;
+if (!BASE_URL) {
+    console.log('BASE_URL_SCRAPE_STAKERS is not set')
+    process.exit(1);
+}
+
+const VALIDATOR = process.env.SCRAPE_STAKERS_VALIDATOR;
+if (!VALIDATOR) {
+    console.log('VALIDATOR is not set')
+    process.exit(1);
+}
+
+if (! process.env.DB_USER || ! process.env.DB_HOST || ! process.env.DB_NAME || ! process.env.DB_PASS || ! process.env.DB_PORT) {
+    console.log('DB credentials are not set')
+    process.exit(1);
+}
 
 const getTotalAmount = async (delegators_in) => {
     const delegators = delegators_in.map(delegator => delegator.amount);
@@ -22,7 +37,7 @@ const doSafetyShot = async () => {
 }
 
 const fetchDelegations = async () => {
-    const url = `http://127.0.0.1:1317/cosmos/staking/v1beta1/validators/${validator}/delegations`;
+    const url = `${BASE_URL}/cosmos/staking/v1beta1/validators/${VALIDATOR}/delegations`;
     var all_delegations = [];
     var offset = 1;
     var limit = 100;
