@@ -8,6 +8,7 @@ const TOKEN_ADDRESS_TERRA = process.env.TOKEN_ADDRESS_TERRA
 const exception_list = [
     // Liq. Reserve
     'terra1xnu72mn60yzcyr0fl8avgjy5wepfw85c0knfeh',
+    'terra1wfxrk3ergtze8jk8jmxhzjw2u5slmpqaaxd0f5',
     
     // DMZ
     'terra1pfefmmls2w67njucd2qgvv4qefcutyl95g986pd69caxdyzp7acsfp0fv8',
@@ -19,11 +20,26 @@ const exception_list = [
     'terra1w89kclh6qd4ftyll4k0x4cyd23lzd9krsntds4y0z2x67kymtf3qj9fgrl',
     'terra1lejvcrgmhcuedemdetv6qrru7yu8qgwn6e070fq6q4kpda838kpsghwl2u',
     
-    // Team Multisig
+    // Team Multisig and vesting dao
     'terra13rc00u4lnysvzz9kcl02q3xrejsxkfkjxqvd20',
+    'terra1rzwuz9cc2j057xpgmf500t78uhttwyfgsspuyqulhs4yqx53rnlqejrtqa',
+
+    // Team Vestin
+    'terra1qscthwdtd7axaax05m423g70cntlrlwx7la44wxmaynr72jl8ssqjpf5v9',
+    'terra1jt70skckl3a3zl98l7na4zqhuyyaerx97rdt9gy2u6eadxc2ke8s2lffsl',
+    'terra1jw5e3hk3k2qz9985r2c3fd0ac5uuz6j98xp9ealnu9qt3dx2wtuqc202fn',
+    'terra13jhdcxd3v7n6fnc4gjj692jsa4jfnh83aly87vj4kyn5c8gp02esgelln5',
+    'terra1pljarz83hu9rfdvg88ft8dr76rwmkr5r0avv30ra3p6pgdepfutqrw90dr',
+    'terra1p989tvvezfl766tgc8m83qk4wjxyelr7hhum4d8w93yjej4vmx8sgl46q7',
+    'terra104vm43leyxhe67eq8cmatk0xnhg3usv8z3czz5rjummhgk4ky2fs6tp8yk',
+    'terra1as5mdt6v6xfugcrv9qd3jm5uqjlmkkemlat66m2ewsepgsnnrggq9hcd9m',
+    'terra12xq35pp48mwp7qep2tdlnt2jg8pxmsll0vtnygay7tgh0djdk34sw6qhdl',
     
     // LLL Treasury
     'terra1q6hmppyadwee5h8jeyymljug4d9ywj2kgpgmtm',
+
+    // STAKING
+    'terra16yle8kwjwfhu6xjdc7qsj552axxnhnx4ltsqtgwhjem5fdgng0nqqysdm5',
 ]
 
 const ask_total_supply_terra = async (wallet) => {
