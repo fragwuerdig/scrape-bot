@@ -39,7 +39,7 @@ const exception_list = [
     'terra1q6hmppyadwee5h8jeyymljug4d9ywj2kgpgmtm',
 
     // STAKING
-    'terra16yle8kwjwfhu6xjdc7qsj552axxnhnx4ltsqtgwhjem5fdgng0nqqysdm5',
+    'terra1rta0rnaxz9ww6hnrj9347vdn66gkgxcmcwgpm2jj6qulv8adc52s95qa5y',
 ]
 
 const ask_total_supply_terra = async (wallet) => {
